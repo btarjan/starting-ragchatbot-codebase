@@ -122,10 +122,26 @@ function addMessage(content, type, sources = null, isWelcome = false) {
     let html = `<div class="message-content">${displayContent}</div>`;
     
     if (sources && sources.length > 0) {
+        // Format sources as clickable links or plain text badges
+        const sourceLinks = sources.map(source => {
+            // Handle backward compatibility with old string format
+            if (typeof source === 'string') {
+                return `<span>${escapeHtml(source)}</span>`;
+            }
+
+            // Handle new structured format
+            const displayText = escapeHtml(source.display_text);
+            if (source.url) {
+                const escapedUrl = escapeHtml(source.url);
+                return `<a href="${escapedUrl}" target="_blank" rel="noopener noreferrer" class="source-link">${displayText}</a>`;
+            }
+            return `<span>${displayText}</span>`;
+        }).join('');
+
         html += `
             <details class="sources-collapsible">
                 <summary class="sources-header">Sources</summary>
-                <div class="sources-content">${sources.join(', ')}</div>
+                <div class="sources-content">${sourceLinks}</div>
             </details>
         `;
     }
