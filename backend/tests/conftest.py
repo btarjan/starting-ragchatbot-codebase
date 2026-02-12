@@ -132,3 +132,73 @@ def sample_course_metadata():
         "lesson_count": 5,
         "lessons_json": '[{"lesson_number": 1, "lesson_title": "Introduction", "lesson_link": "https://example.com/ml/1"}]'
     }
+
+
+@pytest.fixture
+def mock_anthropic_client_with_double_tool_use():
+    """Mocked Anthropic client that triggers tool use twice before final response"""
+    mock_client = MagicMock()
+
+    # Create first tool use response
+    tool_use_block_1 = MagicMock()
+    tool_use_block_1.type = "tool_use"
+    tool_use_block_1.name = "search_course_content"
+    tool_use_block_1.id = "tool_123"
+    tool_use_block_1.input = {"query": "machine learning basics"}
+
+    first_response = MagicMock()
+    first_response.stop_reason = "tool_use"
+    first_response.content = [tool_use_block_1]
+
+    # Create second tool use response
+    tool_use_block_2 = MagicMock()
+    tool_use_block_2.type = "tool_use"
+    tool_use_block_2.name = "search_course_content"
+    tool_use_block_2.id = "tool_456"
+    tool_use_block_2.input = {"query": "deep learning advanced"}
+
+    second_response = MagicMock()
+    second_response.stop_reason = "tool_use"
+    second_response.content = [tool_use_block_2]
+
+    # Create final response after both tool executions
+    final_response = MagicMock()
+    final_response.stop_reason = "end_turn"
+    final_response.content = [MagicMock(text="Comparing ML and DL: Machine learning covers basics while deep learning uses neural networks.")]
+
+    # First call returns tool_use, second returns tool_use, third returns final answer
+    mock_client.messages.create.side_effect = [first_response, second_response, final_response]
+
+    return mock_client
+
+
+@pytest.fixture
+def mock_anthropic_client_always_tool_use():
+    """Mocked Anthropic client that always returns tool_use (for testing max rounds)"""
+    mock_client = MagicMock()
+
+    def create_tool_use_response(call_num):
+        tool_use_block = MagicMock()
+        tool_use_block.type = "tool_use"
+        tool_use_block.name = "search_course_content"
+        tool_use_block.id = f"tool_{call_num}"
+        tool_use_block.input = {"query": f"query {call_num}"}
+
+        response = MagicMock()
+        response.stop_reason = "tool_use"
+        response.content = [tool_use_block]
+        return response
+
+    # Create final response for when tools are removed
+    final_response = MagicMock()
+    final_response.stop_reason = "end_turn"
+    final_response.content = [MagicMock(text="Final answer after max rounds reached.")]
+
+    # First MAX_TOOL_ROUNDS calls return tool_use, then final call returns end_turn
+    mock_client.messages.create.side_effect = [
+        create_tool_use_response(1),
+        create_tool_use_response(2),
+        final_response
+    ]
+
+    return mock_client

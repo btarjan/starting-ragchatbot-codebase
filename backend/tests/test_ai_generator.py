@@ -222,8 +222,124 @@ class TestAIGeneratorSystemPrompt:
         # Should mention conciseness
         assert "concise" in prompt.lower() or "brief" in prompt.lower()
 
-    def test_system_prompt_mentions_one_search_limit(self):
-        """System prompt mentions one search per query limit"""
+    def test_system_prompt_mentions_search_limit(self):
+        """System prompt mentions search limit per query"""
         prompt = AIGenerator.SYSTEM_PROMPT
 
-        assert "one search" in prompt.lower() or "single search" in prompt.lower() or "maximum" in prompt.lower()
+        assert "2 searches" in prompt.lower() or "maximum" in prompt.lower()
+
+
+class TestAIGeneratorMultiRoundToolExecution:
+    """Test multi-round tool execution flow"""
+
+    def test_two_sequential_tool_calls(self, mock_anthropic_client_with_double_tool_use, mock_tool_manager):
+        """Claude makes 2 tool calls in sequence"""
+        with patch('ai_generator.anthropic.Anthropic', return_value=mock_anthropic_client_with_double_tool_use):
+            generator = AIGenerator(api_key="test_key", model="claude-test")
+            tools = [{"name": "search_course_content", "description": "Search"}]
+
+            response = generator.generate_response(
+                query="Compare ML and DL courses",
+                tools=tools,
+                tool_manager=mock_tool_manager
+            )
+
+            # Should have 3 API calls: first tool_use, second tool_use, final answer
+            assert mock_anthropic_client_with_double_tool_use.messages.create.call_count == 3
+            # Tool manager should have been called twice
+            assert mock_tool_manager.execute_tool.call_count == 2
+            # Should return the final response
+            assert "Comparing ML and DL" in response
+
+    def test_single_tool_call_when_sufficient(self, mock_anthropic_client_with_tool_use, mock_tool_manager):
+        """Claude stops after 1 tool call when sufficient"""
+        with patch('ai_generator.anthropic.Anthropic', return_value=mock_anthropic_client_with_tool_use):
+            generator = AIGenerator(api_key="test_key", model="claude-test")
+            tools = [{"name": "search_course_content", "description": "Search"}]
+
+            response = generator.generate_response(
+                query="What is machine learning?",
+                tools=tools,
+                tool_manager=mock_tool_manager
+            )
+
+            # Should have 2 API calls: first tool_use, then final answer
+            assert mock_anthropic_client_with_tool_use.messages.create.call_count == 2
+            # Tool manager should have been called once
+            assert mock_tool_manager.execute_tool.call_count == 1
+            assert "machine learning" in response.lower()
+
+    def test_max_rounds_enforced(self, mock_anthropic_client_always_tool_use, mock_tool_manager):
+        """Loop stops at MAX_TOOL_ROUNDS and final call has no tools"""
+        with patch('ai_generator.anthropic.Anthropic', return_value=mock_anthropic_client_always_tool_use):
+            generator = AIGenerator(api_key="test_key", model="claude-test")
+            tools = [{"name": "search_course_content", "description": "Search"}]
+
+            response = generator.generate_response(
+                query="Keep searching forever",
+                tools=tools,
+                tool_manager=mock_tool_manager
+            )
+
+            # Should have 3 API calls: 2 tool_use rounds + 1 final without tools
+            assert mock_anthropic_client_always_tool_use.messages.create.call_count == 3
+
+            # Final call should NOT have tools parameter
+            final_call = mock_anthropic_client_always_tool_use.messages.create.call_args_list[2]
+            assert "tools" not in final_call.kwargs
+
+            # Should return the final forced response
+            assert "Final answer after max rounds reached" in response
+
+    def test_message_accumulation(self, mock_anthropic_client_with_double_tool_use, mock_tool_manager):
+        """Messages grow correctly with each round"""
+        with patch('ai_generator.anthropic.Anthropic', return_value=mock_anthropic_client_with_double_tool_use):
+            generator = AIGenerator(api_key="test_key", model="claude-test")
+            tools = [{"name": "search_course_content", "description": "Search"}]
+
+            generator.generate_response(
+                query="Compare courses",
+                tools=tools,
+                tool_manager=mock_tool_manager
+            )
+
+            # Check the third (final) API call has accumulated messages
+            third_call = mock_anthropic_client_with_double_tool_use.messages.create.call_args_list[2]
+            messages = third_call.kwargs["messages"]
+
+            # Should have 5 messages:
+            # [0] user: original query
+            # [1] assistant: tool_use block 1
+            # [2] user: tool_result 1
+            # [3] assistant: tool_use block 2
+            # [4] user: tool_result 2
+            assert len(messages) == 5
+            assert messages[0]["role"] == "user"
+            assert messages[1]["role"] == "assistant"
+            assert messages[2]["role"] == "user"
+            assert messages[3]["role"] == "assistant"
+            assert messages[4]["role"] == "user"
+
+    def test_tool_error_continues(self, mock_anthropic_client_with_tool_use):
+        """Tool execution error is passed to Claude as tool result"""
+        mock_tool_manager = MagicMock()
+        mock_tool_manager.execute_tool.side_effect = Exception("Database connection failed")
+
+        with patch('ai_generator.anthropic.Anthropic', return_value=mock_anthropic_client_with_tool_use):
+            generator = AIGenerator(api_key="test_key", model="claude-test")
+            tools = [{"name": "search_course_content", "description": "Search"}]
+
+            generator.generate_response(
+                query="Search something",
+                tools=tools,
+                tool_manager=mock_tool_manager
+            )
+
+            # Check second API call contains the error in tool_result
+            second_call = mock_anthropic_client_with_tool_use.messages.create.call_args_list[1]
+            messages = second_call.kwargs["messages"]
+
+            # The tool result message
+            tool_result_msg = messages[2]["content"]
+            assert isinstance(tool_result_msg, list)
+            assert "Tool execution error: Database connection failed" in tool_result_msg[0]["content"]
