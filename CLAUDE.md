@@ -31,6 +31,39 @@ cd backend && uv run uvicorn app:app --reload --port 8000
 
 Access at: http://localhost:8000 (web UI) and http://localhost:8000/docs (API docs)
 
+### Quality Checks
+
+Before committing code, run quality checks:
+
+```bash
+# Run all quality checks (format, lint, type check, test)
+./scripts/quality.sh
+
+# Individual checks
+./scripts/format.sh      # Format code with Ruff
+./scripts/lint.sh        # Lint code
+./scripts/typecheck.sh   # Type check with Mypy
+./scripts/test.sh        # Run tests with coverage
+
+# Auto-fix linting issues
+cd backend && uv run ruff check --fix .
+```
+
+**Code Quality Tools:**
+- **Ruff**: Fast Python formatter and linter (replaces Black, isort, Flake8)
+  - Line length: 100 characters
+  - Enforces PEP 8, import sorting, and code simplification
+- **Mypy**: Static type checker
+  - Baseline: 23 errors (documented, will be reduced incrementally)
+- **Pytest with Coverage**: Test runner with coverage reporting
+  - Current coverage: 64% (tests: 100%, core modules: partial)
+
+**Before committing:**
+1. Run `./scripts/quality.sh` to ensure all checks pass
+2. Review coverage report at `backend/htmlcov/index.html`
+3. All linting errors must be resolved
+4. All tests must pass
+
 ## Architecture Overview
 
 ### Core Data Flow: Two-Stage Claude Interaction

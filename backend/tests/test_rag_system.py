@@ -3,21 +3,20 @@
 Tests the query() method at line 104 and exposes the MAX_RESULTS=0 bug.
 """
 
-import pytest
-from unittest.mock import MagicMock, patch, PropertyMock
-from dataclasses import dataclass
-import sys
 import os
+import sys
+from dataclasses import dataclass
+from unittest.mock import patch
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+import pytest
 
-from config import config
-from vector_store import SearchResults
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 
 @dataclass
 class MockConfig:
     """Mock config for testing"""
+
     ANTHROPIC_API_KEY: str = "test_api_key"
     ANTHROPIC_MODEL: str = "claude-test"
     EMBEDDING_MODEL: str = "all-MiniLM-L6-v2"
@@ -33,27 +32,29 @@ class TestRAGSystemQueryOrchestration:
 
     def test_query_orchestration(self, mock_anthropic_client, mock_vector_store):
         """Components are wired correctly"""
-        with patch('ai_generator.anthropic.Anthropic', return_value=mock_anthropic_client):
-            with patch('rag_system.VectorStore', return_value=mock_vector_store):
-                from rag_system import RAGSystem
+        with (
+            patch("ai_generator.anthropic.Anthropic", return_value=mock_anthropic_client),
+            patch("rag_system.VectorStore", return_value=mock_vector_store),
+        ):
+            from rag_system import RAGSystem
 
-                config = MockConfig()
-                rag = RAGSystem(config)
+            config = MockConfig()
+            rag = RAGSystem(config)
 
-                # Override components with mocks
-                rag.vector_store = mock_vector_store
-                rag.ai_generator.client = mock_anthropic_client
+            # Override components with mocks
+            rag.vector_store = mock_vector_store
+            rag.ai_generator.client = mock_anthropic_client
 
-                response, sources = rag.query("What is machine learning?")
+            response, sources = rag.query("What is machine learning?")
 
-                # Should return a response
-                assert response is not None
-                assert isinstance(response, str)
+            # Should return a response
+            assert response is not None
+            assert isinstance(response, str)
 
     def test_session_management(self, mock_anthropic_client, mock_vector_store):
         """History is retrieved and updated correctly"""
-        with patch('ai_generator.anthropic.Anthropic', return_value=mock_anthropic_client):
-            with patch('rag_system.VectorStore', return_value=mock_vector_store):
+        with patch("ai_generator.anthropic.Anthropic", return_value=mock_anthropic_client):
+            with patch("rag_system.VectorStore", return_value=mock_vector_store):
                 from rag_system import RAGSystem
 
                 config = MockConfig()
@@ -71,12 +72,13 @@ class TestRAGSystemQueryOrchestration:
                 assert history is not None
                 assert "First question" in history
 
-    def test_source_extraction_and_reset(self, mock_anthropic_client, mock_vector_store, sample_search_results):
+    def test_source_extraction_and_reset(
+        self, mock_anthropic_client, mock_vector_store, sample_search_results
+    ):
         """Sources are returned then cleared"""
-        with patch('ai_generator.anthropic.Anthropic', return_value=mock_anthropic_client):
-            with patch('rag_system.VectorStore', return_value=mock_vector_store):
+        with patch("ai_generator.anthropic.Anthropic", return_value=mock_anthropic_client):
+            with patch("rag_system.VectorStore", return_value=mock_vector_store):
                 from rag_system import RAGSystem
-                from search_tools import CourseSearchTool
 
                 config = MockConfig()
                 rag = RAGSystem(config)
@@ -98,8 +100,8 @@ class TestRAGSystemQueryOrchestration:
 
     def test_tools_registered(self, mock_anthropic_client, mock_vector_store):
         """Both search and outline tools are available"""
-        with patch('ai_generator.anthropic.Anthropic', return_value=mock_anthropic_client):
-            with patch('rag_system.VectorStore', return_value=mock_vector_store):
+        with patch("ai_generator.anthropic.Anthropic", return_value=mock_anthropic_client):
+            with patch("rag_system.VectorStore", return_value=mock_vector_store):
                 from rag_system import RAGSystem
 
                 config = MockConfig()
@@ -166,8 +168,8 @@ class TestRAGSystemIntegration:
 
     def test_query_returns_tuple(self, mock_anthropic_client, mock_vector_store):
         """Query returns (response, sources) tuple"""
-        with patch('ai_generator.anthropic.Anthropic', return_value=mock_anthropic_client):
-            with patch('rag_system.VectorStore', return_value=mock_vector_store):
+        with patch("ai_generator.anthropic.Anthropic", return_value=mock_anthropic_client):
+            with patch("rag_system.VectorStore", return_value=mock_vector_store):
                 from rag_system import RAGSystem
 
                 config = MockConfig()
@@ -184,8 +186,8 @@ class TestRAGSystemIntegration:
 
     def test_query_without_session(self, mock_anthropic_client, mock_vector_store):
         """Query works without session ID"""
-        with patch('ai_generator.anthropic.Anthropic', return_value=mock_anthropic_client):
-            with patch('rag_system.VectorStore', return_value=mock_vector_store):
+        with patch("ai_generator.anthropic.Anthropic", return_value=mock_anthropic_client):
+            with patch("rag_system.VectorStore", return_value=mock_vector_store):
                 from rag_system import RAGSystem
 
                 config = MockConfig()
@@ -198,8 +200,8 @@ class TestRAGSystemIntegration:
 
     def test_query_with_new_session(self, mock_anthropic_client, mock_vector_store):
         """Query creates history for new session"""
-        with patch('ai_generator.anthropic.Anthropic', return_value=mock_anthropic_client):
-            with patch('rag_system.VectorStore', return_value=mock_vector_store):
+        with patch("ai_generator.anthropic.Anthropic", return_value=mock_anthropic_client):
+            with patch("rag_system.VectorStore", return_value=mock_vector_store):
                 from rag_system import RAGSystem
 
                 config = MockConfig()
@@ -221,11 +223,13 @@ class TestRAGSystemCourseAnalytics:
         """Analytics returns expected structure"""
         mock_vector_store.get_course_count.return_value = 3
         mock_vector_store.get_existing_course_titles.return_value = [
-            "Course 1", "Course 2", "Course 3"
+            "Course 1",
+            "Course 2",
+            "Course 3",
         ]
 
-        with patch('ai_generator.anthropic.Anthropic', return_value=mock_anthropic_client):
-            with patch('rag_system.VectorStore', return_value=mock_vector_store):
+        with patch("ai_generator.anthropic.Anthropic", return_value=mock_anthropic_client):
+            with patch("rag_system.VectorStore", return_value=mock_vector_store):
                 from rag_system import RAGSystem
 
                 config = MockConfig()
