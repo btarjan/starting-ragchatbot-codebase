@@ -5,13 +5,12 @@ The test_max_results_is_positive test will FAIL with the current config,
 exposing the MAX_RESULTS=0 bug.
 """
 
-import pytest
-import sys
 import os
+import sys
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from config import config, Config
+from config import Config, config
 
 
 class TestConfigValidation:
@@ -91,14 +90,14 @@ class TestConfigInstance:
     def test_config_attributes_accessible(self):
         """All expected config attributes should be accessible"""
         required_attrs = [
-            'ANTHROPIC_API_KEY',
-            'ANTHROPIC_MODEL',
-            'EMBEDDING_MODEL',
-            'CHUNK_SIZE',
-            'CHUNK_OVERLAP',
-            'MAX_RESULTS',
-            'MAX_HISTORY',
-            'CHROMA_PATH'
+            "ANTHROPIC_API_KEY",
+            "ANTHROPIC_MODEL",
+            "EMBEDDING_MODEL",
+            "CHUNK_SIZE",
+            "CHUNK_OVERLAP",
+            "MAX_RESULTS",
+            "MAX_HISTORY",
+            "CHROMA_PATH",
         ]
         for attr in required_attrs:
             assert hasattr(config, attr), f"Config missing attribute: {attr}"

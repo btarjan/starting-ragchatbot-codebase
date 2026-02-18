@@ -19,7 +19,53 @@ dev = [
     "pytest>=8.0.0",
     "pytest-mock>=3.12.0",
     "httpx>=0.27.0",  # Required for FastAPI TestClient
+    "pytest-cov>=6.0.0",
+    "ruff>=0.9.0",
+    "mypy>=1.15.0",
 ]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = [
+    "E",     # pycodestyle errors
+    "W",     # pycodestyle warnings
+    "F",     # Pyflakes
+    "I",     # isort (import sorting)
+    "N",     # pep8-naming
+    "UP",    # pyupgrade
+    "B",     # flake8-bugbear
+    "C4",    # flake8-comprehensions
+    "SIM",   # flake8-simplify
+]
+ignore = [
+    "E501",   # line-too-long (handled by formatter)
+    "B008",   # function-call-in-default-argument (FastAPI pattern)
+    "SIM108", # Use ternary operator (stylistic preference)
+    "SIM117", # Use single with statement (readability preference for tests)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["N802", "N803"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.mypy]
+python_version = "3.13"
+warn_return_any = true
+warn_unused_configs = true
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+
+[[tool.mypy.overrides]]
+module = ["chromadb.*", "sentence_transformers.*"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 # Test discovery patterns
@@ -35,6 +81,10 @@ addopts = [
     "--tb=short",                  # Shorter traceback format
     "--disable-warnings",          # Disable pytest warnings
     "-ra",                         # Show summary of all test outcomes
+    "--cov=.",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+    "--cov-branch",
 ]
 
 # Markers for test organization
@@ -45,10 +95,6 @@ markers = [
     "slow: Tests that take significant time to run",
 ]
 
-# Coverage configuration (optional, for future use)
-# Uncomment when pytest-cov is added to dependencies
-# addopts = ["--cov=backend", "--cov-report=html", "--cov-report=term"]
-
 # Logging configuration
 log_cli = false
 log_cli_level = "INFO"
@@ -57,3 +103,17 @@ log_cli_date_format = "%Y-%m-%d %H:%M:%S"
 
 # Minimum version requirement
 minversion = "8.0"
+
+[tool.coverage.run]
+source = ["."]
+omit = ["*/tests/*", "*/__pycache__/*", "conftest.py"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]

@@ -3,14 +3,12 @@
 Tests the search tool's execute() method and source tracking behavior.
 """
 
-import pytest
-from unittest.mock import MagicMock, patch
-import sys
 import os
+import sys
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from search_tools import CourseSearchTool, CourseOutlineTool, ToolManager
+from search_tools import CourseOutlineTool, CourseSearchTool, ToolManager
 from vector_store import SearchResults
 
 
@@ -26,9 +24,7 @@ class TestCourseSearchToolExecute:
         assert "Machine Learning Basics" in result
         assert "Lesson 1" in result or "Lesson 2" in result
         mock_vector_store.search.assert_called_once_with(
-            query="machine learning",
-            course_name=None,
-            lesson_number=None
+            query="machine learning", course_name=None, lesson_number=None
         )
 
     def test_execute_with_empty_results(self, mock_vector_store, empty_search_results):
@@ -47,9 +43,7 @@ class TestCourseSearchToolExecute:
         tool.execute(query="neural networks", course_name="ML Basics")
 
         mock_vector_store.search.assert_called_once_with(
-            query="neural networks",
-            course_name="ML Basics",
-            lesson_number=None
+            query="neural networks", course_name="ML Basics", lesson_number=None
         )
 
     def test_execute_with_lesson_filter(self, mock_vector_store, sample_search_results):
@@ -59,9 +53,7 @@ class TestCourseSearchToolExecute:
         tool.execute(query="introduction", lesson_number=1)
 
         mock_vector_store.search.assert_called_once_with(
-            query="introduction",
-            course_name=None,
-            lesson_number=1
+            query="introduction", course_name=None, lesson_number=1
         )
 
     def test_execute_with_both_filters(self, mock_vector_store, sample_search_results):
@@ -71,9 +63,7 @@ class TestCourseSearchToolExecute:
         tool.execute(query="deep learning", course_name="Advanced ML", lesson_number=3)
 
         mock_vector_store.search.assert_called_once_with(
-            query="deep learning",
-            course_name="Advanced ML",
-            lesson_number=3
+            query="deep learning", course_name="Advanced ML", lesson_number=3
         )
 
     def test_execute_with_error(self, mock_vector_store, error_search_results):
@@ -86,7 +76,9 @@ class TestCourseSearchToolExecute:
         assert "Search error" in result
         assert "Database connection failed" in result
 
-    def test_empty_results_with_course_filter_message(self, mock_vector_store, empty_search_results):
+    def test_empty_results_with_course_filter_message(
+        self, mock_vector_store, empty_search_results
+    ):
         """Empty results message includes course filter info"""
         mock_vector_store.search.return_value = empty_search_results
         tool = CourseSearchTool(mock_vector_store)
@@ -96,7 +88,9 @@ class TestCourseSearchToolExecute:
         assert "No relevant content found" in result
         assert "Specific Course" in result
 
-    def test_empty_results_with_lesson_filter_message(self, mock_vector_store, empty_search_results):
+    def test_empty_results_with_lesson_filter_message(
+        self, mock_vector_store, empty_search_results
+    ):
         """Empty results message includes lesson filter info"""
         mock_vector_store.search.return_value = empty_search_results
         tool = CourseSearchTool(mock_vector_store)
@@ -143,7 +137,7 @@ class TestCourseSearchToolSourceTracking:
                 {"course_title": "Same Course", "lesson_number": 1, "chunk_index": 1},
                 {"course_title": "Same Course", "lesson_number": 1, "chunk_index": 2},
             ],
-            distances=[0.1, 0.2, 0.3]
+            distances=[0.1, 0.2, 0.3],
         )
         mock_vector_store.search.return_value = results
         tool = CourseSearchTool(mock_vector_store)
@@ -153,7 +147,9 @@ class TestCourseSearchToolSourceTracking:
         # Should only have one source despite 3 results from same course/lesson
         assert len(tool.last_sources) == 1
 
-    def test_sources_replaced_on_new_search_with_results(self, mock_vector_store, sample_search_results):
+    def test_sources_replaced_on_new_search_with_results(
+        self, mock_vector_store, sample_search_results
+    ):
         """Sources are replaced when new search returns results"""
         tool = CourseSearchTool(mock_vector_store)
 
@@ -166,7 +162,7 @@ class TestCourseSearchToolSourceTracking:
         new_results = SearchResults(
             documents=["New content from different course"],
             metadata=[{"course_title": "Different Course", "lesson_number": 5, "chunk_index": 0}],
-            distances=[0.1]
+            distances=[0.1],
         )
         mock_vector_store.search.return_value = new_results
         tool.execute(query="second search")

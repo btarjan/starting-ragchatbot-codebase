@@ -1,14 +1,13 @@
 """Shared fixtures for RAG chatbot tests"""
 
-import pytest
-from unittest.mock import MagicMock, Mock, patch
-from dataclasses import dataclass
-from typing import List, Dict, Any, Optional
-import sys
 import os
+import sys
+from unittest.mock import MagicMock
+
+import pytest
 
 # Add backend to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from vector_store import SearchResults
 
@@ -27,18 +26,14 @@ def sample_search_results():
             {"course_title": "Machine Learning Basics", "lesson_number": 2, "chunk_index": 1},
             {"course_title": "Advanced ML", "lesson_number": 1, "chunk_index": 0},
         ],
-        distances=[0.1, 0.2, 0.3]
+        distances=[0.1, 0.2, 0.3],
     )
 
 
 @pytest.fixture
 def empty_search_results():
     """Empty results for edge case testing"""
-    return SearchResults(
-        documents=[],
-        metadata=[],
-        distances=[]
-    )
+    return SearchResults(documents=[], metadata=[], distances=[])
 
 
 @pytest.fixture
@@ -90,7 +85,9 @@ def mock_anthropic_client_with_tool_use():
     # Create final response after tool execution
     final_response = MagicMock()
     final_response.stop_reason = "end_turn"
-    final_response.content = [MagicMock(text="Based on the course materials, machine learning is...")]
+    final_response.content = [
+        MagicMock(text="Based on the course materials, machine learning is...")
+    ]
 
     # First call returns tool_use, second returns final answer
     mock_client.messages.create.side_effect = [initial_response, final_response]
@@ -108,11 +105,9 @@ def mock_tool_manager():
             "description": "Search course materials",
             "input_schema": {
                 "type": "object",
-                "properties": {
-                    "query": {"type": "string"}
-                },
-                "required": ["query"]
-            }
+                "properties": {"query": {"type": "string"}},
+                "required": ["query"],
+            },
         }
     ]
     mock_manager.execute_tool.return_value = "Search results: Machine learning content..."
@@ -130,7 +125,7 @@ def sample_course_metadata():
         "instructor": "Dr. Smith",
         "course_link": "https://example.com/ml-course",
         "lesson_count": 5,
-        "lessons_json": '[{"lesson_number": 1, "lesson_title": "Introduction", "lesson_link": "https://example.com/ml/1"}]'
+        "lessons_json": '[{"lesson_number": 1, "lesson_title": "Introduction", "lesson_link": "https://example.com/ml/1"}]',
     }
 
 
@@ -164,7 +159,11 @@ def mock_anthropic_client_with_double_tool_use():
     # Create final response after both tool executions
     final_response = MagicMock()
     final_response.stop_reason = "end_turn"
-    final_response.content = [MagicMock(text="Comparing ML and DL: Machine learning covers basics while deep learning uses neural networks.")]
+    final_response.content = [
+        MagicMock(
+            text="Comparing ML and DL: Machine learning covers basics while deep learning uses neural networks."
+        )
+    ]
 
     # First call returns tool_use, second returns tool_use, third returns final answer
     mock_client.messages.create.side_effect = [first_response, second_response, final_response]
@@ -198,7 +197,7 @@ def mock_anthropic_client_always_tool_use():
     mock_client.messages.create.side_effect = [
         create_tool_use_response(1),
         create_tool_use_response(2),
-        final_response
+        final_response,
     ]
 
     return mock_client

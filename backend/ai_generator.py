@@ -1,6 +1,8 @@
+from typing import Any
+
 import anthropic
-from typing import List, Optional, Dict, Any
 from config import config
+
 
 class AIGenerator:
     """Handles interactions with Anthropic's Claude API for generating responses"""
@@ -44,16 +46,15 @@ Provide only the direct answer to what was asked.
         self.model = model
 
         # Pre-build base API parameters
-        self.base_params = {
-            "model": self.model,
-            "temperature": 0,
-            "max_tokens": 800
-        }
+        self.base_params = {"model": self.model, "temperature": 0, "max_tokens": 800}
 
-    def generate_response(self, query: str,
-                         conversation_history: Optional[str] = None,
-                         tools: Optional[List] = None,
-                         tool_manager=None) -> str:
+    def generate_response(
+        self,
+        query: str,
+        conversation_history: str | None = None,
+        tools: list | None = None,
+        tool_manager=None,
+    ) -> str:
         """
         Generate AI response with optional tool usage and conversation context.
 
@@ -80,11 +81,7 @@ Provide only the direct answer to what was asked.
 
         while round_count < config.MAX_TOOL_ROUNDS:
             # Prepare API call parameters
-            api_params = {
-                **self.base_params,
-                "messages": messages,
-                "system": system_content
-            }
+            api_params = {**self.base_params, "messages": messages, "system": system_content}
 
             # Add tools if available
             if tools:
@@ -110,16 +107,12 @@ Provide only the direct answer to what was asked.
             round_count += 1
 
         # Max rounds reached - final call WITHOUT tools to force a response
-        final_params = {
-            **self.base_params,
-            "messages": messages,
-            "system": system_content
-        }
+        final_params = {**self.base_params, "messages": messages, "system": system_content}
 
         final_response = self.client.messages.create(**final_params)
         return final_response.content[0].text
 
-    def _execute_tools_from_response(self, response, tool_manager) -> List[Dict[str, Any]]:
+    def _execute_tools_from_response(self, response, tool_manager) -> list[dict[str, Any]]:
         """
         Execute all tool calls from a response and return tool results.
 
@@ -136,16 +129,13 @@ Provide only the direct answer to what was asked.
             if content_block.type == "tool_use":
                 try:
                     tool_result = tool_manager.execute_tool(
-                        content_block.name,
-                        **content_block.input
+                        content_block.name, **content_block.input
                     )
                 except Exception as e:
                     tool_result = f"Tool execution error: {str(e)}"
 
-                tool_results.append({
-                    "type": "tool_result",
-                    "tool_use_id": content_block.id,
-                    "content": tool_result
-                })
+                tool_results.append(
+                    {"type": "tool_result", "tool_use_id": content_block.id, "content": tool_result}
+                )
 
         return tool_results
