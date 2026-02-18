@@ -1,7 +1,7 @@
 """Shared fixtures for RAG chatbot tests"""
 
 import pytest
-from unittest.mock import MagicMock, Mock
+from unittest.mock import MagicMock, Mock, patch
 from dataclasses import dataclass
 from typing import List, Dict, Any, Optional
 import sys
@@ -202,3 +202,122 @@ def mock_anthropic_client_always_tool_use():
     ]
 
     return mock_client
+
+
+# ============================================================================
+# API Testing Fixtures
+# ============================================================================
+
+@pytest.fixture
+def mock_rag_system():
+    """Mocked RAGSystem for API testing"""
+    mock_rag = MagicMock()
+
+    # Mock session manager
+    mock_rag.session_manager = MagicMock()
+    mock_rag.session_manager.create_session.return_value = "test_session_123"
+    mock_rag.session_manager.clear_session.return_value = None
+
+    # Mock query method
+    mock_rag.query.return_value = (
+        "This is a test response.",
+        [{"display_text": "Test Course", "url": "https://example.com"}]
+    )
+
+    # Mock analytics method
+    mock_rag.get_course_analytics.return_value = {
+        "total_courses": 2,
+        "course_titles": ["Course 1", "Course 2"]
+    }
+
+    return mock_rag
+
+
+@pytest.fixture
+def test_app(mock_rag_system):
+    """
+    Create a test FastAPI app without static file mounting.
+
+    This avoids the issue where app.py mounts ../frontend directory
+    which doesn't exist in the test environment.
+    """
+    from fastapi import FastAPI, HTTPException
+    from fastapi.middleware.cors import CORSMiddleware
+    from fastapi.middleware.trustedhost import TrustedHostMiddleware
+    from pydantic import BaseModel
+    from typing import List, Optional, Dict
+
+    # Create test app with same configuration as production
+    app = FastAPI(title="Course Materials RAG System (Test)", root_path="")
+
+    # Add same middleware as production
+    app.add_middleware(
+        TrustedHostMiddleware,
+        allowed_hosts=["*"]
+    )
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+        expose_headers=["*"],
+    )
+
+    # Pydantic models (same as app.py)
+    class QueryRequest(BaseModel):
+        query: str
+        session_id: Optional[str] = None
+
+    class QueryResponse(BaseModel):
+        answer: str
+        sources: List[Dict[str, Optional[str]]]
+        session_id: str
+
+    class CourseStats(BaseModel):
+        total_courses: int
+        course_titles: List[str]
+
+    # Define API endpoints inline (same logic as app.py but using mock_rag_system)
+    @app.post("/api/query", response_model=QueryResponse)
+    async def query_documents(request: QueryRequest):
+        try:
+            session_id = request.session_id
+            if not session_id:
+                session_id = mock_rag_system.session_manager.create_session()
+
+            answer, sources = mock_rag_system.query(request.query, session_id)
+
+            return QueryResponse(
+                answer=answer,
+                sources=sources,
+                session_id=session_id
+            )
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @app.get("/api/courses", response_model=CourseStats)
+    async def get_course_stats():
+        try:
+            analytics = mock_rag_system.get_course_analytics()
+            return CourseStats(
+                total_courses=analytics["total_courses"],
+                course_titles=analytics["course_titles"]
+            )
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @app.delete("/api/sessions/{session_id}")
+    async def clear_session(session_id: str):
+        mock_rag_system.session_manager.clear_session(session_id)
+        return {"status": "cleared", "session_id": session_id}
+
+    return app
+
+
+@pytest.fixture
+def test_client(test_app):
+    """FastAPI TestClient for API endpoint testing"""
+    from fastapi.testclient import TestClient
+    return TestClient(test_app)
